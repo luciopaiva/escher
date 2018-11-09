@@ -1,4 +1,6 @@
 
+const TAU = Math.PI * 2;
+
 class Escher {
 
     constructor () {
@@ -6,9 +8,9 @@ class Escher {
         this.ctx = this.canvas.getContext("2d");
         document.body.appendChild(this.canvas);
 
-        this.latticeWidth = 5;
-        this.latticeHeight = 5;
-        this.depths = Array.from(Array((this.latticeWidth) * (this.latticeHeight)), () => Math.random() * 0.2);
+        this.latticeWidth = 20;
+        this.latticeHeight = 20;
+        this.depths = Array.from(Array((this.latticeWidth) * (this.latticeHeight)), () => Math.random());
         this.lattice = Array(this.latticeWidth * this.latticeHeight);
         for (let i = 0; i < this.latticeHeight; i++) {
             for (let j = 0; j < this.latticeWidth; j++) {
@@ -67,16 +69,22 @@ class Escher {
     update(now) {
         // this.angle = (now / 2000); // * Math.PI;
 
+        for (let i = 0; i < this.depths.length; i++) {
+            this.depths[i] += .09;
+        }
+
         this.ctx.clearRect(0, 0, this.width, this.height);
 
-        for (let i = 0; i < this.latticeHeight - 1; i++) {
-            for (let j = 0; j < this.latticeWidth - 1; j++) {
+        // tile rendering order is important for things to look right
+        for (let i = 0; i < this.latticeHeight - 1; i++) {  // bottom up
+            for (let j = this.latticeWidth - 2; j >= 0; j--) {  // right to left
                 const index = i * this.latticeWidth + j;
-                const depth = this.depths[index];
-                const topLeft = [...this.lattice[index], depth];
-                const topRight = [...this.lattice[index + 1], depth];
-                const bottomRight = [...this.lattice[(i + 1) * this.latticeWidth + j + 1], depth];
-                const bottomLeft = [...this.lattice[(i + 1) * this.latticeWidth + j], depth];
+                const depth = (Math.cos(this.depths[index]) + 1) / 20 + 0.05;
+
+                const bottomLeft = [...this.lattice[index], depth];
+                const bottomRight = [...this.lattice[index + 1], depth];
+                const topRight = [...this.lattice[index + this.latticeWidth + 1], depth];
+                const topLeft = [...this.lattice[index + this.latticeWidth], depth];
 
                 // roof
                 const roofLeft = [topLeft[0], topLeft[1], 0];
@@ -90,13 +98,24 @@ class Escher {
                 this.ctx.closePath();
                 this.ctx.fill();
 
-                // wall
+                // lateral wall
+                const floorLeft = [bottomLeft[0], bottomLeft[1], 0];
+                this.ctx.fillStyle = "#111111";
+                this.ctx.beginPath();
+                this.ctx.moveTo(...this.mapCoord(...roofLeft));
+                this.ctx.lineTo(...this.mapCoord(...topLeft));
+                this.ctx.lineTo(...this.mapCoord(...bottomLeft));
+                this.ctx.lineTo(...this.mapCoord(...floorLeft));
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // front wall
                 this.ctx.fillStyle = "#ffe0b3";
                 this.ctx.beginPath();
-                this.ctx.moveTo(...this.mapCoord(...topLeft));
-                this.ctx.lineTo(...this.mapCoord(...topRight));
+                this.ctx.moveTo(...this.mapCoord(...bottomLeft));
                 this.ctx.lineTo(...this.mapCoord(...bottomRight));
-                this.ctx.lineTo(...this.mapCoord(...bottomLeft));
+                this.ctx.lineTo(...this.mapCoord(...topRight));
+                this.ctx.lineTo(...this.mapCoord(...topLeft));
                 this.ctx.closePath();
                 this.ctx.fill();
             }
