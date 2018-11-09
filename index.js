@@ -8,8 +8,8 @@ class Escher {
         this.ctx = this.canvas.getContext("2d");
         document.body.appendChild(this.canvas);
 
-        this.latticeWidth = 20;
-        this.latticeHeight = 20;
+        this.latticeWidth = 30;
+        this.latticeHeight = 30;
         this.depths = Array.from(Array((this.latticeWidth) * (this.latticeHeight)), () => Math.random());
         this.lattice = Array(this.latticeWidth * this.latticeHeight);
         for (let i = 0; i < this.latticeHeight; i++) {
@@ -20,8 +20,7 @@ class Escher {
                 ];
             }
         }
-        const scale = 0.8;
-        this.lattice = this.lattice.map(vertex => vertex.map(coord => coord * scale));
+        this.lattice.forEach(this.scale.bind(this, 0.8));
         console.info(this.lattice);
         this.angle = 35 / 180 * Math.PI;
 
@@ -50,6 +49,11 @@ class Escher {
         return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
     }
 
+    scale(scale, point) {
+        point[0] *= scale;
+        point[1] *= scale;
+    }
+
     rotateX(x, y, z, theta) {
         return [
             x,
@@ -73,13 +77,16 @@ class Escher {
             this.depths[i] += .09;
         }
 
+        this.lattice.forEach(this.scale.bind(this, 1.005));
+
         this.ctx.clearRect(0, 0, this.width, this.height);
 
         // tile rendering order is important for things to look right
         for (let i = 0; i < this.latticeHeight - 1; i++) {  // bottom up
             for (let j = this.latticeWidth - 2; j >= 0; j--) {  // right to left
                 const index = i * this.latticeWidth + j;
-                const depth = (Math.cos(this.depths[index]) + 1) / 20 + 0.05;
+                let depth = Math.cos(this.depths[index] + i * j) + 1;  // 0..2
+                depth = depth / 40 + 0.05;
 
                 const bottomLeft = [...this.lattice[index], depth];
                 const bottomRight = [...this.lattice[index + 1], depth];
