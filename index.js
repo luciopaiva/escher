@@ -23,6 +23,8 @@ function randomInRange(min, max) {
  */
 class House {
     constructor (x, y, size) {
+        this.x = x;
+        this.y = y;
         this.maxDepth = size / 2;
         // Houses always start with depth zero. Depth varies according to a sinusoidal function, where -1 means z=0 and
         // +1 means maximum house depth
@@ -76,8 +78,9 @@ class Escher {
         document.body.appendChild(this.canvas);
 
         this.latticeSize = SIDE_IN_HOUSES;  // how many houses per side
-        const houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
+        this.houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
 
+        /** @type {House[]} */
         this.houses = Array(this.latticeSize ** 2);
 
         // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
@@ -86,15 +89,17 @@ class Escher {
         for (let row = 0; row < this.latticeSize; row++) {
             let x = 1;
             for (let column = 0; column < this.latticeSize; column++) {
-                this.houses[i++] = new House(x, y, houseSize);
-                x -= houseSize;
+                this.houses[i++] = new House(x, y, this.houseSize);
+                x -= this.houseSize;
             }
-            y += houseSize;
+            y += this.houseSize;
         }
         console.info(this.houses);
 
         this.projectionAngleX = 30 / 180 * Math.PI;
         this.projectionAngleY = 45 / 180 * Math.PI;
+
+        this.center = [0, 0, 0];
 
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
@@ -152,7 +157,10 @@ class Escher {
         this.ctx.fill();
     }
 
-    projectPoint(scale, x = 0, y = 0, z = 0) {
+    projectPoint(offset, scale, x = 0, y = 0, z = 0) {
+        x += offset[0];
+        y += offset[1];
+        z += offset[2];
         [x, y, z] = this.rotateY(x, y, z, this.projectionAngleY);
         [x, y, z] = this.rotateX(x, y, z, this.projectionAngleX);
         // x /= z + 2;
@@ -160,32 +168,49 @@ class Escher {
         return [this.halfWidth + x * scale, this.halfHeight - y * scale];
     }
 
-    project(scale, points) {
-        return points.map(point => this.projectPoint(scale, ...point));
+    project(offset, scale, points) {
+        return points.map(point => this.projectPoint(offset, scale, ...point));
+    }
+
+    /**
+     * @param {[Number,Number,Number]} offset
+     * @param {Number} scale
+     * @param {Number} [smallerScale]
+     */
+    drawHouses(offset, scale, smallerScale) {
+        const centerHouseIndex = Math.floor(this.houses.length / 2);
+        for (let i = 0; i < this.houses.length; i++) {
+            const house = this.houses[i];
+            smallerScale && house.update();
+
+            this.ctx.fillStyle = "#d65226";
+            this.drawPolygon(this.project(offset, scale, house.roof));
+            this.ctx.fillStyle = "#111111";
+            this.drawPolygon(this.project(offset, scale, house.lateralWall));
+            this.ctx.fillStyle = "#ffe0b3";
+            this.drawPolygon(this.project(offset, scale, house.frontWall));
+
+            if (smallerScale && i === centerHouseIndex) {
+                const scaleDelta = scale / smallerScale;
+                const offset = [house.x, house.y, house.z * scaleDelta];
+                this.drawHouses(offset, smallerScale, null);
+            }
+        }
     }
 
     update(now) {
         // ToDo increment scale
         // this.lattice.forEach(this.scale.bind(this, 1.005));
 
-        const scale = this.halfHeight;
-
         this.ctx.clearRect(0, 0, this.width, this.height);
         // this.ctx.setTransform(
         //     scale, 0, 0,
         //     -scale, this.halfWidth, this.halfHeight);
 
-        for (const house of this.houses) {
-            house.update();
-            this.ctx.fillStyle = "#d65226";
-            this.drawPolygon(this.project(scale, house.roof));
-            this.ctx.fillStyle = "#111111";
-            this.drawPolygon(this.project(scale, house.lateralWall));
-            this.ctx.fillStyle = "#ffe0b3";
-            this.drawPolygon(this.project(scale, house.frontWall));
-        }
+        const biggerScale = this.halfHeight;
+        const smallerScale = this.halfHeight * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
 
-        // ToDo run block above one more but in a smaller scale
+        this.drawHouses(this.center, biggerScale, smallerScale);
 
         requestAnimationFrame(this.updateFn);
     }
