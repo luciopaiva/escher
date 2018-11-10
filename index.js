@@ -1,5 +1,69 @@
+/*
+ * This demo is inspired by Escher's Metamorphosis II, specifically by the part the blocks that become the city of
+ * Atrani. I chose colors similar to what Escher used in the final print.
+ */
 
 const TAU = Math.PI * 2;
+const MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 8;
+const MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 4;
+const MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
+const MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
+
+function randomInRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+/**
+ * A house is a block centered around 0,0 on the x,y plane whose depth (z) varies according to a certain random speed.
+ * The block is actually made of only 3 faces, the only ones that the camera will actually see:
+ * - the roof, red-ish color
+ * - the front wall, beige
+ * - the lateral wall, dark
+ */
+class House {
+    constructor (x, y, size) {
+        // Houses always start with depth zero. Depth varies according to a sinusoidal function, where -1 means z=0 and
+        // +1 means maximum house depth
+        this.z = 0;
+        // this is the current angle of the sinusoidal function
+        this.depthAngle = 0;
+        // this is the speed with which the angle varies - it's different from house to house to give a chaotic effect
+        this.dz = randomInRange(MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME, MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME);
+
+        const h = size / 2;
+        this.frontWall = [
+            [x - h, y + h, this.z],
+            [x + h, y + h, this.z],
+            [x + h, y - h, this.z],
+            [x - h, y - h, this.z]
+        ];
+        this.roof = [
+            [x - h, y + h, 0],
+            [x + h, y + h, 0],
+            [x + h, y + h, this.z],
+            [x - h, y + h, this.z]
+        ];
+        this.lateralWall = [
+            [x - h, y + h, 0],
+            [x - h, y + h, this.z],
+            [x - h, y - h, this.z],
+            [x - h, y - h, 0]
+        ];
+    }
+    update() {
+        this.depthAngle += this.dz;
+        this.z = (Math.cos(this.depthAngle) + 1) * .08;
+
+        this.frontWall[0][2] = this.z;
+        this.frontWall[1][2] = this.z;
+        this.frontWall[2][2] = this.z;
+        this.frontWall[3][2] = this.z;
+        this.roof[2][2] = this.z;
+        this.roof[3][2] = this.z;
+        this.lateralWall[1][2] = this.z;
+        this.lateralWall[2][2] = this.z;
+    }
+}
 
 class Escher {
 
@@ -8,21 +72,26 @@ class Escher {
         this.ctx = this.canvas.getContext("2d");
         document.body.appendChild(this.canvas);
 
-        this.latticeWidth = 30;
-        this.latticeHeight = 30;
-        this.depths = Array.from(Array((this.latticeWidth) * (this.latticeHeight)), () => Math.random());
-        this.lattice = Array(this.latticeWidth * this.latticeHeight);
-        for (let i = 0; i < this.latticeHeight; i++) {
-            for (let j = 0; j < this.latticeWidth; j++) {
-                this.lattice[i * this.latticeWidth + j] = [
-                    (j / (this.latticeWidth - 1)) * 2 - 1,
-                    (i / (this.latticeHeight - 1)) * 2 - 1
-                ];
+        this.latticeSize = 11;  // how many houses per side
+        const houseSize = 2 / this.latticeSize;  // divide space from -1 to +1 into latticeSize slots
+
+        this.houses = Array(this.latticeSize ** 2);
+
+        // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
+        const step = 2 / (this.latticeSize - 1);
+        let i = 0;
+        let y = -1;
+        for (let row = 0; row < this.latticeSize; row++) {
+            let x = 1;
+            for (let column = 0; column < this.latticeSize; column++) {
+                this.houses[i++] = new House(x, y, houseSize);
+                x -= step;
             }
+            y += step;
         }
-        this.lattice.forEach(this.scale.bind(this, 0.8));
-        console.info(this.lattice);
-        this.angle = 35 / 180 * Math.PI;
+        console.info(this.houses);
+
+        this.projectionAngle = 35 / 180 * Math.PI;
 
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
@@ -42,8 +111,8 @@ class Escher {
     }
 
     mapCoord(x = 0, y = 0, z = 0) {
-        [x, y, z] = this.rotateY(x, y, z, this.angle);
-        [x, y, z] = this.rotateX(x, y, z, this.angle);
+        [x, y, z] = this.rotateY(x, y, z, this.projectionAngle);
+        [x, y, z] = this.rotateX(x, y, z, this.projectionAngle);
         // x /= z + 2;
         // y /= z + 2;
         return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
@@ -70,63 +139,50 @@ class Escher {
         ];
     }
 
-    update(now) {
-        // this.angle = (now / 2000); // * Math.PI;
-
-        for (let i = 0; i < this.depths.length; i++) {
-            this.depths[i] += .09;
+    drawPolygon(points) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(...points[0]);
+        for (let i = 1; i < points.length; i++) {
+            this.ctx.lineTo(...points[i]);
         }
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
 
-        this.lattice.forEach(this.scale.bind(this, 1.005));
+    projectPoint(x = 0, y = 0, z = 0) {
+        [x, y, z] = this.rotateY(x, y, z, this.projectionAngle);
+        [x, y, z] = this.rotateX(x, y, z, this.projectionAngle);
+        // x /= z + 2;
+        // y /= z + 2;
+        return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
+    }
+
+    project(points) {
+        return points.map(point => this.projectPoint(...point));
+    }
+
+    update(now) {
+        // ToDo increment scale
+        // this.lattice.forEach(this.scale.bind(this, 1.005));
+
+        const scale = 500;
 
         this.ctx.clearRect(0, 0, this.width, this.height);
+        // this.ctx.setTransform(
+        //     scale, 0, 0,
+        //     -scale, this.halfWidth, this.halfHeight);
 
-        // tile rendering order is important for things to look right
-        for (let i = 0; i < this.latticeHeight - 1; i++) {  // bottom up
-            for (let j = this.latticeWidth - 2; j >= 0; j--) {  // right to left
-                const index = i * this.latticeWidth + j;
-                let depth = Math.cos(this.depths[index] + i * j) + 1;  // 0..2
-                depth = depth / 40 + 0.05;
-
-                const bottomLeft = [...this.lattice[index], depth];
-                const bottomRight = [...this.lattice[index + 1], depth];
-                const topRight = [...this.lattice[index + this.latticeWidth + 1], depth];
-                const topLeft = [...this.lattice[index + this.latticeWidth], depth];
-
-                // roof
-                const roofLeft = [topLeft[0], topLeft[1], 0];
-                const roofRight = [topRight[0], topRight[1], 0];
-                this.ctx.fillStyle = "#d65226";
-                this.ctx.beginPath();
-                this.ctx.moveTo(...this.mapCoord(...roofLeft));
-                this.ctx.lineTo(...this.mapCoord(...roofRight));
-                this.ctx.lineTo(...this.mapCoord(...topRight));
-                this.ctx.lineTo(...this.mapCoord(...topLeft));
-                this.ctx.closePath();
-                this.ctx.fill();
-
-                // lateral wall
-                const floorLeft = [bottomLeft[0], bottomLeft[1], 0];
-                this.ctx.fillStyle = "#111111";
-                this.ctx.beginPath();
-                this.ctx.moveTo(...this.mapCoord(...roofLeft));
-                this.ctx.lineTo(...this.mapCoord(...topLeft));
-                this.ctx.lineTo(...this.mapCoord(...bottomLeft));
-                this.ctx.lineTo(...this.mapCoord(...floorLeft));
-                this.ctx.closePath();
-                this.ctx.fill();
-
-                // front wall
-                this.ctx.fillStyle = "#ffe0b3";
-                this.ctx.beginPath();
-                this.ctx.moveTo(...this.mapCoord(...bottomLeft));
-                this.ctx.lineTo(...this.mapCoord(...bottomRight));
-                this.ctx.lineTo(...this.mapCoord(...topRight));
-                this.ctx.lineTo(...this.mapCoord(...topLeft));
-                this.ctx.closePath();
-                this.ctx.fill();
-            }
+        for (const house of this.houses) {
+            house.update();
+            this.ctx.fillStyle = "#d65226";
+            this.drawPolygon(this.project(house.roof));
+            this.ctx.fillStyle = "#111111";
+            this.drawPolygon(this.project(house.lateralWall));
+            this.ctx.fillStyle = "#ffe0b3";
+            this.drawPolygon(this.project(house.frontWall));
         }
+
+        // ToDo run block above one more but in a smaller scale
 
         requestAnimationFrame(this.updateFn);
     }
