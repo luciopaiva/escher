@@ -73,7 +73,7 @@ class Escher {
         document.body.appendChild(this.canvas);
 
         this.latticeSize = 11;  // how many houses per side
-        const houseSize = 2 / this.latticeSize;  // divide space from -1 to +1 into latticeSize slots
+        const houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
 
         this.houses = Array(this.latticeSize ** 2);
 
