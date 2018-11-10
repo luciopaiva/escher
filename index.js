@@ -104,6 +104,8 @@ class Escher {
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
 
+        this.biggerScale = this.halfHeight;
+
         this.updateFn = this.update.bind(this);
         this.update(performance.now());
     }
@@ -191,8 +193,9 @@ class Escher {
             this.drawPolygon(this.project(offset, scale, house.frontWall));
 
             if (smallerScale && i === centerHouseIndex) {
+                // you could remove the second condition to draw smaller houses everywhere
                 const scaleDelta = scale / smallerScale;
-                const offset = [house.x, house.y, house.z * scaleDelta];
+                const offset = [house.x * scaleDelta, house.y * scaleDelta, house.z * scaleDelta];
                 this.drawHouses(offset, smallerScale, null);
             }
         }
@@ -207,10 +210,10 @@ class Escher {
         //     scale, 0, 0,
         //     -scale, this.halfWidth, this.halfHeight);
 
-        const biggerScale = this.halfHeight;
-        const smallerScale = this.halfHeight * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
+        this.biggerScale *= 1.005;
+        const smallerScale = this.biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
 
-        this.drawHouses(this.center, biggerScale, smallerScale);
+        this.drawHouses(this.center, this.biggerScale, smallerScale);
 
         requestAnimationFrame(this.updateFn);
     }
