@@ -56,6 +56,7 @@ class House {
         this.depthAngle += this.dz;
         this.z = (Math.cos(this.depthAngle) + 1) * this.maxDepth;
 
+        // update z on all points that depend on it
         this.frontWall[0][2] = this.z;
         this.frontWall[1][2] = this.z;
         this.frontWall[2][2] = this.z;
@@ -151,23 +152,23 @@ class Escher {
         this.ctx.fill();
     }
 
-    projectPoint(x = 0, y = 0, z = 0) {
+    projectPoint(scale, x = 0, y = 0, z = 0) {
         [x, y, z] = this.rotateY(x, y, z, this.projectionAngleY);
         [x, y, z] = this.rotateX(x, y, z, this.projectionAngleX);
         // x /= z + 2;
         // y /= z + 2;
-        return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
+        return [this.halfWidth + x * scale, this.halfHeight - y * scale];
     }
 
-    project(points) {
-        return points.map(point => this.projectPoint(...point));
+    project(scale, points) {
+        return points.map(point => this.projectPoint(scale, ...point));
     }
 
     update(now) {
         // ToDo increment scale
         // this.lattice.forEach(this.scale.bind(this, 1.005));
 
-        const scale = 500;
+        const scale = this.halfHeight;
 
         this.ctx.clearRect(0, 0, this.width, this.height);
         // this.ctx.setTransform(
@@ -177,11 +178,11 @@ class Escher {
         for (const house of this.houses) {
             house.update();
             this.ctx.fillStyle = "#d65226";
-            this.drawPolygon(this.project(house.roof));
+            this.drawPolygon(this.project(scale, house.roof));
             this.ctx.fillStyle = "#111111";
-            this.drawPolygon(this.project(house.lateralWall));
+            this.drawPolygon(this.project(scale, house.lateralWall));
             this.ctx.fillStyle = "#ffe0b3";
-            this.drawPolygon(this.project(house.frontWall));
+            this.drawPolygon(this.project(scale, house.frontWall));
         }
 
         // ToDo run block above one more but in a smaller scale
