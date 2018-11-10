@@ -8,6 +8,7 @@ const MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 8;
 const MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 4;
 const MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
 const MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
+const SIDE_IN_HOUSES = 7;
 
 function randomInRange(min, max) {
     return min + Math.random() * (max - min);
@@ -22,11 +23,12 @@ function randomInRange(min, max) {
  */
 class House {
     constructor (x, y, size) {
+        this.maxDepth = size / 2;
         // Houses always start with depth zero. Depth varies according to a sinusoidal function, where -1 means z=0 and
         // +1 means maximum house depth
         this.z = 0;
-        // this is the current angle of the sinusoidal function
-        this.depthAngle = 0;
+        // this is the current angle of the sinusoidal function (start with 180deg so that it grows from z=0)
+        this.depthAngle = Math.PI;
         // this is the speed with which the angle varies - it's different from house to house to give a chaotic effect
         this.dz = randomInRange(MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME, MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME);
 
@@ -52,7 +54,7 @@ class House {
     }
     update() {
         this.depthAngle += this.dz;
-        this.z = (Math.cos(this.depthAngle) + 1) * .08;
+        this.z = (Math.cos(this.depthAngle) + 1) * this.maxDepth;
 
         this.frontWall[0][2] = this.z;
         this.frontWall[1][2] = this.z;
@@ -72,22 +74,21 @@ class Escher {
         this.ctx = this.canvas.getContext("2d");
         document.body.appendChild(this.canvas);
 
-        this.latticeSize = 5;  // how many houses per side
+        this.latticeSize = SIDE_IN_HOUSES;  // how many houses per side
         const houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
 
         this.houses = Array(this.latticeSize ** 2);
 
         // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
-        const step = 2 / (this.latticeSize - 1);
         let i = 0;
         let y = -1;
         for (let row = 0; row < this.latticeSize; row++) {
             let x = 1;
             for (let column = 0; column < this.latticeSize; column++) {
                 this.houses[i++] = new House(x, y, houseSize);
-                x -= step;
+                x -= houseSize;
             }
-            y += step;
+            y += houseSize;
         }
         console.info(this.houses);
 
