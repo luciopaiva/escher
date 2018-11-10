@@ -91,7 +91,8 @@ class Escher {
         }
         console.info(this.houses);
 
-        this.projectionAngle = 35 / 180 * Math.PI;
+        this.projectionAngleX = 30 / 180 * Math.PI;
+        this.projectionAngleY = 45 / 180 * Math.PI;
 
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
@@ -111,8 +112,8 @@ class Escher {
     }
 
     mapCoord(x = 0, y = 0, z = 0) {
-        [x, y, z] = this.rotateY(x, y, z, this.projectionAngle);
-        [x, y, z] = this.rotateX(x, y, z, this.projectionAngle);
+        [x, y, z] = this.rotateY(x, y, z, this.projectionAngleY);
+        [x, y, z] = this.rotateX(x, y, z, this.projectionAngleX);
         // x /= z + 2;
         // y /= z + 2;
         return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
@@ -150,8 +151,8 @@ class Escher {
     }
 
     projectPoint(x = 0, y = 0, z = 0) {
-        [x, y, z] = this.rotateY(x, y, z, this.projectionAngle);
-        [x, y, z] = this.rotateX(x, y, z, this.projectionAngle);
+        [x, y, z] = this.rotateY(x, y, z, this.projectionAngleY);
+        [x, y, z] = this.rotateX(x, y, z, this.projectionAngleX);
         // x /= z + 2;
         // y /= z + 2;
         return [this.halfWidth + x * this.halfWidth / this.aspectRatio, this.halfHeight - y * this.halfHeight];
