@@ -9,6 +9,8 @@ const MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 4;
 const MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
 const MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
 const SIDE_IN_HOUSES = 3;
+const CENTER_INDEX = 4;
+const MAX_RECURSION_LEVEL = 2;
 
 function randomInRange(min, max) {
     return min + Math.random() * (max - min);
@@ -22,15 +24,14 @@ function randomInRange(min, max) {
  * - the lateral wall, dark
  */
 class House {
-    constructor (x, y, z, size) {
+    constructor (x, y, z, finalY, size) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.maxDepth = size / 2;
-        // this is the current angle of the sinusoidal function (start with 180deg so that it grows from z=0)
-        this.depthAngle = Math.PI;
-        // this is the speed with which the angle varies - it's different from house to house to give a chaotic effect
-        this.dz = 0;  // randomInRange(MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME, MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME);
+        this.finalY = finalY;
+        this.size = size;
+        this.isDone = false;
+        this.houses = [];
 
         const h = size / 2;
         this.frontWall = [
@@ -53,6 +54,28 @@ class House {
         ];
     }
     update() {
+        if (this.y < this.finalY) {
+            this.y += this.size / 64;
+
+            const h = this.size / 2;
+            this.frontWall[0][1] = this.y + h;
+            this.frontWall[1][1] = this.y + h;
+            this.frontWall[2][1] = this.y - h;
+            this.frontWall[3][1] = this.y - h;
+
+            this.roof[0][1] = this.y + h;
+            this.roof[1][1] = this.y + h;
+            this.roof[2][1] = this.y + h;
+            this.roof[3][1] = this.y + h;
+
+            this.lateralWall[0][1] = this.y + h;
+            this.lateralWall[1][1] = this.y + h;
+            this.lateralWall[2][1] = this.y - h;
+            this.lateralWall[3][1] = this.y - h;
+        } else {
+            this.isDone = true;
+        }
+
         // // this.depthAngle += this.dz;
         // // this.z = (Math.cos(this.depthAngle) + 1) * this.maxDepth;
         //
@@ -66,6 +89,28 @@ class House {
         // this.lateralWall[1][2] = this.z;
         // this.lateralWall[2][2] = this.z;
     }
+
+    static makePyramid(latticeSize, houseSize) {
+        const half = houseSize / 2;
+
+        /** @type {House[]} */
+        const houses = Array(latticeSize * (latticeSize + 1) / 2);  // sum of the first n natural numbers
+
+        let i = 0;
+        let z = half;
+        for (let row = 0; row < latticeSize; row++) {
+            let x = -half;
+            let y = half + houseSize * (latticeSize - row - 1);
+            for (let col = 0; col < latticeSize - row; col++) {
+                houses[i++] = new House(x, half, z, y, houseSize);
+                x -= houseSize;
+                y -= houseSize;
+            }
+            z += houseSize;
+        }
+
+        return houses;
+    }
 }
 
 class Escher {
@@ -76,24 +121,10 @@ class Escher {
         document.body.appendChild(this.canvas);
 
         this.latticeSize = SIDE_IN_HOUSES;  // how many houses per side
-        this.houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
-        const half = this.houseSize / 2;
+        this.houseSize = 1 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
 
         /** @type {House[]} */
-        this.houses = Array(this.latticeSize * (this.latticeSize + 1) / 2);  // sum of the first n natural numbers
-
-        let i = 0;
-        let z = half;
-        for (let row = 0; row < this.latticeSize; row++) {
-            let x = -half;
-            let y = half + this.houseSize * (this.latticeSize - row - 1);
-            for (let col = 0; col < this.latticeSize - row; col++) {
-                this.houses[i++] = new House(x, y, z, this.houseSize);
-                x -= this.houseSize;
-                y -= this.houseSize;
-            }
-            z += this.houseSize;
-        }
+        this.houses = House.makePyramid(this.latticeSize, this.houseSize);
         console.info(this.houses);
 
         // // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
@@ -109,7 +140,7 @@ class Escher {
         // }
         // console.info(this.houses);
 
-        this.projectionAngleX = 30 / 180 * Math.PI;
+        this.projectionAngleX = 35.3 / 180 * Math.PI;
         this.projectionAngleY = 45 / 180 * Math.PI;
 
         this.center = [0, 0, 0];
@@ -117,7 +148,7 @@ class Escher {
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
 
-        this.biggerScale = this.halfHeight / 4;
+        this.zoomFactor = 1 / 4;
         this.isRunning = true;
 
         window.addEventListener("keypress", this.keypress.bind(this));
@@ -198,14 +229,23 @@ class Escher {
 
     /**
      * @param {[Number,Number,Number]} offset
-     * @param {Number} scale
-     * @param {Number} [smallerScale]
+     * @param {Number} level
      */
-    drawHouses(offset, scale, smallerScale) {
-        const centerHouseIndex = Math.floor(this.houses.length / 2);
+    drawHouses(offset, level) {
+        const scaleFactor = level > 0 ? this.houseSize / (level * 1.5) : 1;
+        const scale = this.zoomFactor * this.halfHeight * scaleFactor;
+
+        // offset[0] -= this.houseSize;
+        // offset[1] -= this.houseSize / 1024;
+        // offset[2] += this.houseSize;
+
+        // offset[0] *= this.houseSize;
+        // offset[1] *= this.houseSize;
+        // offset[2] *= this.houseSize;
+
         for (let i = 0; i < this.houses.length; i++) {
             const house = this.houses[i];
-            smallerScale && house.update();
+            // smallerScale && house.update();
 
             this.ctx.fillStyle = "#d65226";
             this.drawPolygon(this.project(offset, scale, house.roof));
@@ -213,6 +253,11 @@ class Escher {
             this.drawPolygon(this.project(offset, scale, house.lateralWall));
             this.ctx.fillStyle = "#ffe0b3";
             this.drawPolygon(this.project(offset, scale, house.frontWall));
+
+            if (level < MAX_RECURSION_LEVEL && i === CENTER_INDEX && house.isDone) {
+                // const offset = [house.x, house.y, house.z];
+                this.drawHouses(offset, level + 1);
+            }
 
             // if (smallerScale && i === centerHouseIndex) {
             //     // you could remove the second condition to draw smaller houses everywhere
@@ -230,10 +275,13 @@ class Escher {
             //     scale, 0, 0,
             //     -scale, this.halfWidth, this.halfHeight);
 
-            // this.biggerScale *= 1.005;
-            const smallerScale = this.biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
+            this.zoomFactor *= 1.005;
+            document.title = this.zoomFactor.toFixed(2);
+            // const biggerScale = this.zoomFactor * this.halfHeight;
+            // const smallerScale = biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
 
-            this.drawHouses(this.center, this.biggerScale, smallerScale);
+            this.houses.forEach(house => house.update());
+            this.drawHouses(this.center, 0);
         }
 
         requestAnimationFrame(this.updateFn);

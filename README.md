@@ -37,3 +37,7 @@ Things to try:
 
 - organize houses in a pyramid composition
 - stop all the bouncing; houses emerge from the ground to their final positions and then stay there. As the camera zooms in, at some point the next level of houses will appear from the roof of the center house.
+
+## Third iteration
+
+The camera starts at (0, 0, 1) facing the center. A beige screen appears and then the print projection starts. Some moments later, the camera starts to rotate around the center in the y axis, revealing that what appeared to be a wall is actually a pyramid of cubes.
