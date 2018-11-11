@@ -104,10 +104,19 @@ class Escher {
         this.resize();
         window.addEventListener("resize", this.resize.bind(this));
 
-        this.biggerScale = this.halfHeight;
+        this.biggerScale = this.halfHeight / 4;
+        this.isRunning = true;
+
+        window.addEventListener("keypress", this.keypress.bind(this));
 
         this.updateFn = this.update.bind(this);
         this.update(performance.now());
+    }
+
+    keypress(event) {
+        switch (event.key) {
+            case " ": this.isRunning = !this.isRunning;
+        }
     }
 
     resize() {
@@ -202,18 +211,17 @@ class Escher {
     }
 
     update(now) {
-        // ToDo increment scale
-        // this.lattice.forEach(this.scale.bind(this, 1.005));
+        if (this.isRunning) {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+            // this.ctx.setTransform(
+            //     scale, 0, 0,
+            //     -scale, this.halfWidth, this.halfHeight);
 
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        // this.ctx.setTransform(
-        //     scale, 0, 0,
-        //     -scale, this.halfWidth, this.halfHeight);
+            this.biggerScale *= 1.005;
+            const smallerScale = this.biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
 
-        this.biggerScale *= 1.005;
-        const smallerScale = this.biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
-
-        this.drawHouses(this.center, this.biggerScale, smallerScale);
+            this.drawHouses(this.center, this.biggerScale, smallerScale);
+        }
 
         requestAnimationFrame(this.updateFn);
     }
