@@ -8,7 +8,7 @@ const MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 8;
 const MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC = TAU / 4;
 const MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MIN_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
 const MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME = MAX_GROWTH_SPEED_IN_RADIANS_PER_SEC / 60;
-const SIDE_IN_HOUSES = 7;
+const SIDE_IN_HOUSES = 3;
 
 function randomInRange(min, max) {
     return min + Math.random() * (max - min);
@@ -22,51 +22,49 @@ function randomInRange(min, max) {
  * - the lateral wall, dark
  */
 class House {
-    constructor (x, y, size) {
+    constructor (x, y, z, size) {
         this.x = x;
         this.y = y;
+        this.z = z;
         this.maxDepth = size / 2;
-        // Houses always start with depth zero. Depth varies according to a sinusoidal function, where -1 means z=0 and
-        // +1 means maximum house depth
-        this.z = 0;
         // this is the current angle of the sinusoidal function (start with 180deg so that it grows from z=0)
         this.depthAngle = Math.PI;
         // this is the speed with which the angle varies - it's different from house to house to give a chaotic effect
-        this.dz = randomInRange(MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME, MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME);
+        this.dz = 0;  // randomInRange(MIN_GROWTH_SPEED_IN_RADIANS_PER_FRAME, MAX_GROWTH_SPEED_IN_RADIANS_PER_FRAME);
 
         const h = size / 2;
         this.frontWall = [
-            [x - h, y + h, this.z],
-            [x + h, y + h, this.z],
-            [x + h, y - h, this.z],
-            [x - h, y - h, this.z]
+            [x - h, y + h, z + h],
+            [x + h, y + h, z + h],
+            [x + h, y - h, z + h],
+            [x - h, y - h, z + h]
         ];
         this.roof = [
-            [x - h, y + h, 0],
-            [x + h, y + h, 0],
-            [x + h, y + h, this.z],
-            [x - h, y + h, this.z]
+            [x - h, y + h, z - h],
+            [x + h, y + h, z - h],
+            [x + h, y + h, z + h],
+            [x - h, y + h, z + h]
         ];
         this.lateralWall = [
-            [x - h, y + h, 0],
-            [x - h, y + h, this.z],
-            [x - h, y - h, this.z],
-            [x - h, y - h, 0]
+            [x - h, y + h, z - h],
+            [x - h, y + h, z + h],
+            [x - h, y - h, z + h],
+            [x - h, y - h, z - h]
         ];
     }
     update() {
-        this.depthAngle += this.dz;
-        this.z = (Math.cos(this.depthAngle) + 1) * this.maxDepth;
-
-        // update z on all points that depend on it
-        this.frontWall[0][2] = this.z;
-        this.frontWall[1][2] = this.z;
-        this.frontWall[2][2] = this.z;
-        this.frontWall[3][2] = this.z;
-        this.roof[2][2] = this.z;
-        this.roof[3][2] = this.z;
-        this.lateralWall[1][2] = this.z;
-        this.lateralWall[2][2] = this.z;
+        // // this.depthAngle += this.dz;
+        // // this.z = (Math.cos(this.depthAngle) + 1) * this.maxDepth;
+        //
+        // // update z on all points that depend on it
+        // this.frontWall[0][2] = this.z;
+        // this.frontWall[1][2] = this.z;
+        // this.frontWall[2][2] = this.z;
+        // this.frontWall[3][2] = this.z;
+        // this.roof[2][2] = this.z;
+        // this.roof[3][2] = this.z;
+        // this.lateralWall[1][2] = this.z;
+        // this.lateralWall[2][2] = this.z;
     }
 }
 
@@ -79,22 +77,37 @@ class Escher {
 
         this.latticeSize = SIDE_IN_HOUSES;  // how many houses per side
         this.houseSize = 2 / (this.latticeSize - 1);  // divide space from -1 to +1 into latticeSize slots
+        const half = this.houseSize / 2;
 
         /** @type {House[]} */
-        this.houses = Array(this.latticeSize ** 2);
+        this.houses = Array(this.latticeSize * (this.latticeSize + 1) / 2);  // sum of the first n natural numbers
 
-        // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
         let i = 0;
-        let y = -1;
+        let z = half;
         for (let row = 0; row < this.latticeSize; row++) {
-            let x = 1;
-            for (let column = 0; column < this.latticeSize; column++) {
-                this.houses[i++] = new House(x, y, this.houseSize);
+            let x = -half;
+            let y = half + this.houseSize * (this.latticeSize - row - 1);
+            for (let col = 0; col < this.latticeSize - row; col++) {
+                this.houses[i++] = new House(x, y, z, this.houseSize);
                 x -= this.houseSize;
+                y -= this.houseSize;
             }
-            y += this.houseSize;
+            z += this.houseSize;
         }
         console.info(this.houses);
+
+        // // bottom up, right to left (so rendering order looks right - might need to change if viewing angle changes)
+        // let i = 0;
+        // let y = -1;
+        // for (let row = 0; row < this.latticeSize; row++) {
+        //     let x = 1;
+        //     for (let column = 0; column < this.latticeSize; column++) {
+        //         this.houses[i++] = new House(x, y, this.houseSize);
+        //         x -= this.houseSize;
+        //     }
+        //     y += this.houseSize;
+        // }
+        // console.info(this.houses);
 
         this.projectionAngleX = 30 / 180 * Math.PI;
         this.projectionAngleY = 45 / 180 * Math.PI;
@@ -201,12 +214,12 @@ class Escher {
             this.ctx.fillStyle = "#ffe0b3";
             this.drawPolygon(this.project(offset, scale, house.frontWall));
 
-            if (smallerScale && i === centerHouseIndex) {
-                // you could remove the second condition to draw smaller houses everywhere
-                const scaleDelta = scale / smallerScale;
-                const offset = [house.x * scaleDelta, house.y * scaleDelta, house.z * scaleDelta];
-                this.drawHouses(offset, smallerScale, null);
-            }
+            // if (smallerScale && i === centerHouseIndex) {
+            //     // you could remove the second condition to draw smaller houses everywhere
+            //     const scaleDelta = scale / smallerScale;
+            //     const offset = [house.x * scaleDelta, house.y * scaleDelta, house.z * scaleDelta];
+            //     this.drawHouses(offset, smallerScale, null);
+            // }
         }
     }
 
@@ -217,7 +230,7 @@ class Escher {
             //     scale, 0, 0,
             //     -scale, this.halfWidth, this.halfHeight);
 
-            this.biggerScale *= 1.005;
+            // this.biggerScale *= 1.005;
             const smallerScale = this.biggerScale * this.houseSize / 2.325;  // ToDo find out where does this constant come from!
 
             this.drawHouses(this.center, this.biggerScale, smallerScale);
