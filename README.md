@@ -5,7 +5,7 @@ This demo is inspired by Escher's Metamorphosis II, specifically by the part the
 
 In the code I refer to each block as a "house". Each house is a cube centered around a certain x,y,z coordinate, as you can see in the diagram below:
 
-![][20181110-2136-house.jpg]
+![](img/20181110-2136-house.jpg)
 
 Each house cube has actually only three sides, since those are the only sides that appear to the camera.
 
@@ -13,13 +13,13 @@ Each house cube has actually only three sides, since those are the only sides th
 
 My initial idea was to create a grid of houses and keep zooming in forever, creating some kind of fractal in the process. This is what I came up with in my first iteration:
 
-![][20181110-2131-wall-of-houses-recursive.png]
+![](img/20181110-2131-wall-of-houses-recursive.png)
 
 The front wall of the center house is where the fractal part comes in. Like all other houses, that house keeps bouncing in and out of the grid. At some point, though, its front wall would fragment into smaller houses and that would trigger the next fractal level.
 
 I even thought about having that fragmentation process occuring in all houses, but that would certainly not scale well:
 
-![][20181110-2057-smaller-houses-everywhere.png]
+![](img/20181110-2057-smaller-houses-everywhere.png)
 
 This first iteration proved not to be that good. Something undesirable happens when the camera starts to get too close of the center house: nearby houses get in front of the center house, making it disappear. That would be solved by creating a near culling plane where everything coming before that plane would not be rendered.
 
