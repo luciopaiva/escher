@@ -17,7 +17,7 @@ My initial idea was to create a grid of houses and keep zooming in forever, crea
 
 The front wall of the center house is where the fractal part comes in. Like all other houses, that house keeps bouncing in and out of the grid. At some point, though, its front wall would fragment into smaller houses and that would trigger the next fractal level.
 
-I even thought about having that fragmentation process occuring in all houses, but that would certainly not scale well:
+I even thought about having that fragmentation process occurring in all houses, but that would certainly not scale well:
 
 ![](img/20181110-2057-smaller-houses-everywhere.png)
 
