@@ -1,6 +1,8 @@
 
 # Escher
 
+This is a work in progress.
+
 This demo is inspired by Escher's Metamorphosis II, specifically by the part the blocks that become the city of Atrani. I also chose colors similar to what Escher used in his print.
 
 In the code I refer to each block as a "house". Each house is a cube centered around a certain x,y,z coordinate, as you can see in the diagram below:
